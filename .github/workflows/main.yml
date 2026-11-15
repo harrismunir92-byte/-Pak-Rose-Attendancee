@@ -17,12 +17,9 @@ jobs:
       - name: Prepare web files
         run: |
           mkdir -p www
-          if [ ! -f www/index.html ]; then
-            f=$(find . -name node_modules -prune -o -name index.html -print | head -n 1)
-            if [ -z "$f" ]; then echo "index.html repo mein nahi mili"; exit 1; fi
-            cp "$f" www/index.html
-          fi
+          cp attendance-app.html www/index.html
       - run: npm install
+      - run: npm install @capacitor/filesystem@6 @capacitor/share@6
       - run: npx cap add android
       - run: npx cap sync android
       - name: Build debug APK
