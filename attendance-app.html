@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Attendance &amp; Payroll</title>
+<style>
+:root{--bg:#f3f5f9;--cd:#fff;--tx:#18202f;--mu:#6b7385;--bd:#e2e6ee;--hd:#eef1f7;--ac:#2554d8;--acx:#fff;--ok:#13804a;--no:#c62828;--lv:#b86a00;--hf:#6d3fc4;--of:#5b6578;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f141d;--cd:#171e2b;--tx:#e8ecf4;--mu:#97a1b6;--bd:#2a3345;--hd:#1f2838;--ac:#6b93ff;--acx:#0b1020;--ok:#4cc38a;--no:#ff7a7a;--lv:#f0b050;--hf:#b296ff;--of:#9aa5ba;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f141d;--cd:#171e2b;--tx:#e8ecf4;--mu:#97a1b6;--bd:#2a3345;--hd:#1f2838;--ac:#6b93ff;--acx:#0b1020;--ok:#4cc38a;--no:#ff7a7a;--lv:#f0b050;--hf:#b296ff;--of:#9aa5ba;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--cd);border-bottom:1px solid var(--bd);padding:14px 16px}
+h1{font-size:19px;margin:0}h2{font-size:15px;margin:0 0 10px}
+.mu{color:var(--mu);font-size:12px}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;max-width:1100px;margin:0 auto}
+main{max-width:1100px;margin:0 auto;padding:0 16px 40px}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+button,input,select{font:inherit;color:var(--tx)}
+input,select{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:7px 9px;min-width:0}
+button{background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+button.pri,button.on{background:var(--ac);border-color:var(--ac);color:var(--acx)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mu)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}.stat b{display:block;font-size:22px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{padding:8px 10px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{background:var(--hd);font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.03em}
+td.n,th.n{text-align:right}
+.sb button{padding:4px 9px;margin-right:3px;font-weight:600}
+.sb .P.on{background:var(--ok);border-color:var(--ok)}.sb .A.on{background:var(--no);border-color:var(--no)}
+.sb .L.on{background:var(--lv);border-color:var(--lv)}.sb .UL.on{background:var(--no);border-color:var(--no)}.rp sup{font-size:9px;margin-left:1px}.sb .H.on{background:var(--hf);border-color:var(--hf)}.sb .O.on{background:var(--of);border-color:var(--of)}
+.tg{font-size:11px;padding:2px 7px;border-radius:99px;border:1px solid currentColor;margin-right:4px}
+.cP{color:var(--ok)}.cA,.cU,.cUL{color:var(--no)}.cL{color:var(--lv)}.cH{color:var(--hf)}.cO{color:var(--of)}
+.rp td{text-align:center;padding:6px 5px;font-weight:600}.rp td:first-child,.rp th:first-child{text-align:left;position:sticky;left:0;background:var(--cd)}
+tfoot td{font-weight:700;background:var(--hd)}
+.err{color:var(--no);margin-top:8px}
+</style></head>
+<body>
+<header><h1 id="co"></h1><div class="mu">Attendance &amp; Payroll</div></header>
+<nav id="nav"></nav>
+<main id="v"></main>
+<script>
+const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const K='att_pro_v1',ST={P:'Present',A:'Absent',L:'Paid Leave',UL:'Unpaid Leave',H:'Half',O:'Off'},SC={P:'P',A:'A',L:'PL',UL:'UL',H:'H',O:'O'};
+let D={emp:[],rec:{},set:{co:'Your Company',basis:0,paid:2,grace:10,fine:0,ot:1,off:0}};
+try{const x=JSON.parse(localStorage.getItem(K)||'null');if(x)D={emp:x.emp||[],rec:x.rec||{},set:Object.assign(D.set,x.set)}}catch(e){}
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=ymd(new Date());
+let tab='today',day=today,mon=today.slice(0,7),editId=null,delId=null,msg='';
+const mins=t=>{const p=(t||'').split(':');return p.length<2?0:+p[0]*60+ +p[1]};
+const rec=(id,d)=>(D.rec[d]||{})[id]||{};
+const money=n=>'Rs '+Math.round(n).toLocaleString('en-US');
+const eff=(e,d)=>rec(e.id,d).s||(new Date(d+'T00:00').getDay()==D.set.off?'O':'');
+const shiftH=e=>{let m=mins(e.en)-mins(e.st);if(m<=0)m+=1440;return m/60};
+const hrs=r=>{if(!r.i||!r.o)return 0;let m=mins(r.o)-mins(r.i);if(m<0)m+=1440;return m/60};
+const late=(e,r)=>r.s==='P'&&!!r.i&&mins(r.i)>mins(e.st)+D.set.grace;
+const early=(e,r)=>r.s==='P'&&!!r.o&&mins(e.en)>mins(e.st)&&mins(r.o)<mins(e.en)-D.set.grace;
+const ot=(e,r)=>r.s==='P'?Math.max(0,hrs(r)-shiftH(e)):0;
+
+function put(id,d,p){D.rec[d]=D.rec[d]||{};const r=D.rec[d][id]=Object.assign(D.rec[d][id]||{},p);
+ if(p.i&&!r.s)r.s='P';if(!r.s&&!r.i&&!r.o)delete D.rec[d][id];save();draw()}
+
+function calc(e,m){const[y,mo]=m.split('-').map(Number),n=new Date(y,mo,0).getDate(),c={P:0,A:0,L:0,UL:0,H:0,O:0,U:0};let lt=0,er=0,o=0;
+ for(let d=1;d<=n;d++){const dt=m+'-'+pad(d);if(dt>today)continue;const r=rec(e.id,dt);c[eff(e,dt)||'U']++;if(late(e,r))lt++;if(early(e,r))er++;o+=ot(e,r)}
+ const pl=c.L,den=D.set.basis==30?30:n,pd=e.sal/den,pay=Math.min(den,c.P+c.H/2+c.O+pl),
+ fine=lt*D.set.fine,otp=o*(pd/shiftH(e))*D.set.ot;
+ return{n,c,pl,ul:c.UL,late:lt,early:er,ot:o,pd,pay,base:pd*pay,fine,otp,net:Math.max(0,pd*pay-fine+otp)}}
+
+const TABS=[['today','Attendance'],['emp','Employees'],['rep','Monthly Report'],['sal','Salary']];
+function draw(){
+ $('#nav').innerHTML=TABS.map(([k,l])=>`<button class="${tab==k?'pri':''}" data-a="tab" data-v="${k}">${l}</button>`).join('');
+ $('#co').textContent=D.set.co||'Attendance';
+ $('#v').innerHTML=({today:vToday,emp:vEmp,rep:vRep,sal:vSal})[tab]()}
+
+const none='<div class="card mu">Pehle Employees tab mein staff add karein.</div>';
+function vToday(){
+ const cnt={P:0,A:0,L:0,UL:0,H:0,O:0,U:0};D.emp.forEach(e=>cnt[eff(e,day)||'U']++);
+ const stats=[['P','Present'],['A','Absent'],['L','Paid Leave'],['UL','Unpaid Leave'],['H','Half Day'],['O','Off'],['U','Unmarked']].map(([k,l])=>`<div class="stat"><span class="mu">${l}</span><b class="c${k}">${cnt[k]}</b></div>`).join('');
+ const rows=D.emp.map(e=>{const r=rec(e.id,day),s=eff(e,day),h=hrs(r),o=ot(e,r),t=(f,v)=>`<input type="time" value="${v||''}" data-a="${f}" data-id="${e.id}"> <button data-a="now" data-f="${f=='in'?'i':'o'}" data-id="${e.id}">Now</button>`;
+  return`<tr><td><b>${esc(e.name)}</b><div class="mu">${esc(e.de)} · ${e.st}–${e.en}</div></td>
+  <td class="sb">${Object.keys(ST).map(k=>`<button class="${k}${s==k?' on':''}" data-a="st" data-id="${e.id}" data-v="${k}">${ST[k]}</button>`).join('')}</td>
+  <td>${t('in',r.i)}</td><td>${t('out',r.o)}</td><td>${h?h.toFixed(2)+' h':'–'}</td>
+  <td>${late(e,r)?'<span class="tg cA">Late in</span>':''}${early(e,r)?'<span class="tg cL">Early out</span>':''}${o>0?`<span class="tg cP">OT ${o.toFixed(1)}h</span>`:''}</td></tr>`}).join('');
+ return`<div class="card row"><label>Date<input type="date" value="${day}" data-a="day"></label><button data-a="today">Today</button><button class="pri" data-a="all">Mark all present</button></div>
+ <div class="grid">${stats}</div>${D.emp.length?`<div class="card tw"><table><thead><tr><th>Employee</th><th>Status</th><th>Check in</th><th>Check out</th><th>Worked</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:none}`}
+
+function vEmp(){
+ const ed=D.emp.find(e=>e.id==editId)||{},S=D.set,
+ o=(arr,cur)=>arr.map(([v,l])=>`<option value="${v}"${v==cur?' selected':''}>${l}</option>`).join(''),
+ sf=(k,l,t='number',x='')=>`<label>${l}<input type="${t}" ${x} value="${esc(S[k])}" data-a="set" data-k="${k}"></label>`;
+ const rows=D.emp.map(e=>`<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.de)}</td><td class="n">${money(e.sal)}</td><td>${e.st}–${e.en}</td><td><button data-a="edit" data-id="${e.id}">Edit</button> <button data-a="del" data-id="${e.id}">${delId==e.id?'Sure? Delete':'Delete'}</button></td></tr>`).join('');
+ return`<div class="card"><h2>${editId?'Edit employee':'Add employee'}</h2><div class="row">
+ <label>Name<input id="fn" value="${esc(ed.name)}"></label><label>Designation<input id="fd" value="${esc(ed.de)}"></label>
+ <label>Monthly salary (Rs)<input id="fs" type="number" min="0" value="${esc(ed.sal)}"></label>
+ <label>Shift start<input id="fst" type="time" value="${ed.st||'09:00'}"></label><label>Shift end<input id="fen" type="time" value="${ed.en||'18:00'}"></label>
+ <button class="pri" data-a="add">${editId?'Save changes':'Add'}</button>${editId?'<button data-a="cancel">Cancel</button>':''}</div>${msg?`<div class="err">${msg}</div>`:''}</div>
+ ${D.emp.length?`<div class="card tw"><table><thead><tr><th>Name</th><th>Designation</th><th class="n">Salary</th><th>Shift</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
+ <div class="card"><h2>Salary rules</h2><div class="row">${sf('co','Company name','text')}
+ <label>Per-day salary basis<select data-a="set" data-k="basis">${o([[0,'Calendar days of month'],[30,'Fixed 30 days']],S.basis)}</select></label>
+ <label>Weekly off<select data-a="set" data-k="off">${o([[0,'Sunday'],[1,'Monday'],[5,'Friday'],[6,'Saturday'],[-1,'None']],S.off)}</select></label>
+ ${sf('grace','Late grace (minutes)','number','min="0"')}${sf('fine','Fine per late (Rs)','number','min="0"')}${sf('ot','Overtime rate (x, 0 = off)','number','min="0" step="0.5"')}</div>
+ <p class="mu">Data is saved in this browser on this device.</p></div>`}
+
+function vRep(){
+ const[y,mo]=mon.split('-').map(Number),n=new Date(y,mo,0).getDate(),det=[];
+ const head=Array.from({length:n},(_,i)=>`<th style="text-align:center">${i+1}</th>`).join('');
+ const rows=D.emp.map(e=>{const k=calc(e,mon);let cells='';
+  for(let d=1;d<=n;d++){const dt=mon+'-'+pad(d),s=eff(e,dt),r=rec(e.id,dt),lt=late(e,r),er=early(e,r);
+   if(lt)det.push([dt,e.name,'Late in','Came at '+r.i+' (shift starts '+e.st+')']);
+   if(er)det.push([dt,e.name,'Early out','Left at '+r.o+' (shift ends '+e.en+')']);
+   cells+=`<td class="c${s||'U'}">${dt>today&&!s?'·':SC[s]||'–'}${lt?'<sup class="cA">L</sup>':''}${er?'<sup class="cL">E</sup>':''}</td>`}
+  return`<tr><td><b>${esc(e.name)}</b></td>${cells}<td class="cP">${k.c.P}</td><td class="cH">${k.c.H}</td><td class="cL">${k.c.L}</td><td class="cUL">${k.c.UL}</td><td class="cA">${k.c.A+k.c.U}</td><td class="cA">${k.late}</td><td class="cL">${k.early}</td></tr>`}).join('');
+ det.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+ const dr=det.map(x=>`<tr><td>${x[0].slice(8)+'/'+x[0].slice(5,7)}</td><td>${esc(x[1])}</td><td class="${x[2]=='Late in'?'cA':'cL'}">${x[2]}</td><td>${x[3]}</td></tr>`).join('');
+ return`<div class="card row"><label>Month<input type="month" value="${mon}" data-a="mon"></label><span class="mu">P Present · A Absent · PL Paid Leave · UL Unpaid Leave · H Half · O Off · – unmarked · small <b>L</b> = late in, <b>E</b> = early out</span></div>
+ ${D.emp.length?`<div class="card tw"><table class="rp"><thead><tr><th>Employee</th>${head}<th>P</th><th>H</th><th>PL</th><th>UL</th><th>A</th><th>Late</th><th>Early</th></tr></thead><tbody>${rows}</tbody></table></div>
+ <div class="card tw"><h2>Late in / early out details</h2>${dr?`<table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Details</th></tr></thead><tbody>${dr}</tbody></table>`:'<span class="mu">No late or early records this month.</span>'}</div>`:none}`}
+
+function vSal(){
+ let T={base:0,fine:0,otp:0,net:0};
+ const rows=D.emp.map(e=>{const k=calc(e,mon);T.base+=e.sal;T.fine+=k.fine;T.otp+=k.otp;T.net+=k.net;
+  return`<tr><td><b>${esc(e.name)}</b></td><td class="n">${money(e.sal)}</td><td class="n">${k.c.P}</td><td class="n">${k.c.H}</td><td class="n">${k.c.O}</td><td class="n">${k.pl} / ${k.ul}</td><td class="n">${k.c.A+k.c.U}</td><td class="n">${k.late}</td><td class="n">${k.ot.toFixed(1)}</td><td class="n">${money(k.pd)}</td><td class="n">−${money(k.fine)}</td><td class="n">+${money(k.otp)}</td><td class="n"><b>${money(k.net)}</b></td></tr>`}).join('');
+ return`<div class="card row"><label>Month<input type="month" value="${mon}" data-a="mon"></label><button class="pri" data-a="xl">Export Excel</button></div>
+ ${D.emp.length?`<div class="card tw"><table><thead><tr><th>Employee</th><th class="n">Basic</th><th class="n">Present</th><th class="n">Half</th><th class="n">Off</th><th class="n">Leave paid / unpaid</th><th class="n">Absent</th><th class="n">Late</th><th class="n">OT hrs</th><th class="n">Per day</th><th class="n">Late fine</th><th class="n">OT pay</th><th class="n">Net salary</th></tr></thead><tbody>${rows}</tbody>
+ <tfoot><tr><td>Total</td><td class="n">${money(T.base)}</td><td colspan="9"></td><td class="n">+${money(T.otp)}</td><td class="n">${money(T.net)}</td></tr></tfoot></table></div>
+ <p class="mu">Net = per-day salary × payable days (present + half-day ÷ 2 + weekly off + paid leaves) − late fines + overtime. Unmarked days count as absent. For the running month, salary is calculated up to today.</p>${msg?`<div class="err">${msg}</div>`:''}`:none}`}
+
+const MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',NS='http://schemas.openxmlformats.org/spreadsheetml/2006/main',R='http://schemas.openxmlformats.org/officeDocument/2006/relationships',PK='http://schemas.openxmlformats.org/package/2006/',X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+const crcT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc=b=>{let c=-1;for(let i=0;i<b.length;i++)c=crcT[(c^b[i])&255]^(c>>>8);return(c^-1)>>>0};
+const u16=v=>[v&255,(v>>8)&255],u32=v=>[v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];
+async function zip(files){
+ const enc=new TextEncoder(),parts=[],cd=[];let off=0;
+ files.forEach(([name,text])=>{const n=enc.encode(name),d=enc.encode(text),c=crc(d),
+  h=[0x50,0x4b,3,4,20,0,0,0,0,0,0,0,33,0,...u32(c),...u32(d.length),...u32(d.length),...u16(n.length),0,0];
+  parts.push(new Uint8Array(h),n,d);
+  cd.push(new Uint8Array([0x50,0x4b,1,2,20,0,20,0,0,0,0,0,0,0,33,0,...u32(c),...u32(d.length),...u32(d.length),...u16(n.length),0,0,0,0,0,0,0,0,0,0,0,0,...u32(off)]),n);
+  off+=h.length+n.length+d.length});
+ let cs=0;cd.forEach(x=>{parts.push(x);cs+=x.length});
+ parts.push(new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(cs),...u32(off),0,0]));
+ return new Uint8Array(await new Blob(parts).arrayBuffer())}
+const colL=i=>{let s='';for(i++;i>0;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s};
+const sheet=(rows,bold)=>`${X}<worksheet xmlns="${NS}"><cols><col min="1" max="1" width="24" customWidth="1"/><col min="2" max="40" width="12" customWidth="1"/></cols><sheetData>${rows.map((r,i)=>`<row r="${i+1}">${r.map((v,j)=>{if(v===''||v==null)return'';const a=colL(j)+(i+1),s=bold.includes(i)?' s="1"':'';return typeof v=='number'?`<c r="${a}"${s}><v>${v}</v></c>`:`<c r="${a}"${s} t="inlineStr"><is><t>${esc(v)}</t></is></c>`}).join('')}</row>`).join('')}</sheetData></worksheet>`;
+const xbook=(a,b)=>zip([
+ ['[Content_Types].xml',`${X}<Types xmlns="${PK}content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
+ ['_rels/.rels',`${X}<Relationships xmlns="${PK}relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+ ['xl/workbook.xml',`${X}<workbook xmlns="${NS}" xmlns:r="${R}"><sheets><sheet name="Salary" sheetId="1" r:id="rId1"/><sheet name="Attendance" sheetId="2" r:id="rId2"/></sheets></workbook>`],
+ ['xl/_rels/workbook.xml.rels',`${X}<Relationships xmlns="${PK}relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${R}/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="${R}/styles" Target="styles.xml"/></Relationships>`],
+ ['xl/styles.xml',`${X}<styleSheet xmlns="${NS}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>`],
+ ['xl/worksheets/sheet1.xml',sheet(a,[0,2,a.length-1])],['xl/worksheets/sheet2.xml',sheet(b,[0,2])]]);
+async function xl(){
+ msg='';if(!D.emp.length){msg='Add employees first.';draw();return}
+ const[y,mo]=mon.split('-').map(Number),n=new Date(y,mo,0).getDate(),co=D.set.co||'Attendance';
+ const S=[[co+' - Salary '+mon],[],['Employee','Designation','Basic Salary','Present','Half','Off','Paid Leave','Unpaid Leave','Absent','Late','OT Hours','Per Day','Late Fine','OT Pay','Net Salary']];
+ const A=[[co+' - Attendance '+mon],[],['Employee',...Array.from({length:n},(_,i)=>i+1),'P','H','PL','UL','A','Late','Early']];let tot=0;
+ D.emp.forEach(e=>{const k=calc(e,mon);tot+=k.net;
+  S.push([e.name,e.de||'',e.sal,k.c.P,k.c.H,k.c.O,k.pl,k.ul,k.c.A+k.c.U,k.late,+k.ot.toFixed(2),Math.round(k.pd),Math.round(k.fine),Math.round(k.otp),Math.round(k.net)]);
+  const r=[e.name];for(let d=1;d<=n;d++){const dt=mon+'-'+pad(d),s=eff(e,dt);const q=rec(e.id,dt);r.push(dt>today&&!s?'':(SC[s]||'-')+(late(e,q)?' Late':'')+(early(e,q)?' Early':''))}
+  A.push([...r,k.c.P,k.c.H,k.c.L,k.c.UL,k.c.A+k.c.U,k.late,k.early])});
+ S.push([],['Total',...Array(13).fill(''),Math.round(tot)]);
+ const name='Attendance-'+mon+'.xlsx',C=window.Capacitor;
+ try{const data=await xbook(S,A);
+  if(C&&C.isNativePlatform&&C.isNativePlatform()){
+   let s='';for(let i=0;i<data.length;i+=8192)s+=String.fromCharCode.apply(null,data.subarray(i,i+8192));
+   const F=C.Plugins.Filesystem||C.registerPlugin('Filesystem'),H=C.Plugins.Share||C.registerPlugin('Share');
+   await F.writeFile({path:name,data:btoa(s),directory:'CACHE'});
+   const u=await F.getUri({path:name,directory:'CACHE'});
+   await H.share({title:name,url:u.uri,dialogTitle:'Save or send Excel file'})
+  }else{
+   const b=new Blob([data],{type:MIME}),d=window.claude?await window.claude.use('downloads'):null;
+   if(d)await d.save({filename:name,data:b});
+   else{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click()}}
+ }catch(e){const m=String(e&&e.message||e);if(!/cancel|dismiss/i.test(m)){msg='Export failed: '+m;draw()}}}
+
+function addEmp(){
+ const g=i=>$('#'+i).value.trim(),n=g('fn'),s=+g('fs');
+ if(!n||!(s>0)){msg='Name and monthly salary are required.';draw();return}
+ const o={name:n,de:g('fd'),sal:s,st:g('fst')||'09:00',en:g('fen')||'18:00'};
+ if(editId)Object.assign(D.emp.find(e=>e.id==editId),o);else D.emp.push(Object.assign({id:Date.now().toString(36)},o));
+ editId=null;msg='';save();draw()}
+
+document.addEventListener('click',ev=>{
+ const b=ev.target.closest('button[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id,v=b.dataset.v;
+ if(a=='tab'){tab=v;msg='';delId=null;draw()}
+ else if(a=='st')put(id,day,{s:rec(id,day).s==v?'':v});
+ else if(a=='now'){const n=new Date();put(id,day,{[b.dataset.f]:pad(n.getHours())+':'+pad(n.getMinutes())})}
+ else if(a=='today'){day=today;draw()}
+ else if(a=='all'){D.emp.forEach(e=>{if(!eff(e,day))put0(e.id)});save();draw()}
+ else if(a=='add')addEmp();
+ else if(a=='edit'){editId=id;msg='';draw();scrollTo(0,0)}
+ else if(a=='cancel'){editId=null;draw()}
+ else if(a=='del'){if(delId==id){D.emp=D.emp.filter(e=>e.id!=id);Object.keys(D.rec).forEach(d=>delete D.rec[d][id]);delId=null;save()}else delId=id;draw()}
+ else if(a=='xl')xl()});
+function put0(id){D.rec[day]=D.rec[day]||{};D.rec[day][id]=Object.assign(D.rec[day][id]||{},{s:'P'})}
+document.addEventListener('change',ev=>{
+ const t=ev.target,a=t.dataset.a;if(!a||t.tagName=='BUTTON')return;
+ if(a=='in')put(t.dataset.id,day,{i:t.value});
+ else if(a=='out')put(t.dataset.id,day,{o:t.value});
+ else if(a=='day'){day=t.value||today;draw()}
+ else if(a=='mon'){mon=t.value||mon;draw()}
+ else if(a=='set'){const k=t.dataset.k;D.set[k]=k=='co'?t.value:(+t.value||0);save();$('#co').textContent=D.set.co||'Attendance'}});
+draw();
+</script></body></html>
